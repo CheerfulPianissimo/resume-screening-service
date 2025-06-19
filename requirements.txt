@@ -1,5 +1,5 @@
 flask
 PyPDF2
 pydantic
-sentence_transformers
 openai
+numpy

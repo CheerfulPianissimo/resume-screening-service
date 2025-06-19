@@ -1,20 +1,28 @@
 import os
 from .utils import extract_text
 from openai import OpenAI
-from sentence_transformers import SentenceTransformer, util
+import numpy as np
 
 import json
 
-# Initialize OpenAI client and embedding model
+# Initialize OpenAI client
 _openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
-_sim_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+def _get_embedding(text):
+    response = _openai_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+    )
+    return np.array(response.data[0].embedding)
+
+def _calculate_similarity(text1: str, text2: str) -> float:
+    emb1 = _get_embedding(text1)
+    emb2 = _get_embedding(text2)
+    return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
 
 def _generate_resume_brief(text: str) -> str:
     prompt = (
-        "You are a helpful assistant specialized in HR recruitment. "
-        "Summarize the following resume into a brief professional summary of key skills, "
-        "experience, and technologies used:\n\n"
-        f"{text}\n\nBrief Summary:"
+        f"You are a helpful HR assistant. Summarize this resume:\n\n{text}\n\nBrief Summary:"
     )
     response = _openai_client.chat.completions.create(
         model="gpt-4.1-mini",
@@ -24,24 +32,15 @@ def _generate_resume_brief(text: str) -> str:
     )
     return response.choices[0].message.content.strip()
 
-def _calculate_similarity(text1: str, text2: str, model) -> float:
-    emb1 = model.encode(text1, convert_to_tensor=True)
-    emb2 = model.encode(text2, convert_to_tensor=True)
-    return util.pytorch_cos_sim(emb1, emb2).item()
-
 def _extract_skills_comma_separated(text):
     prompt = (
-        "You are an HR specialist with technical expertisereviewing a candidate's resume.\n"
-        "Your task is to extract 8 key technical skills mentioned in the resume based on the job description requirement.\n"
-        "Return 15 maximum key technical skills in a comma-separated list, no extra text or punctuation.\n\n"
-        f"Resume:\n{text}\n\n"
-        "Skills:"
+        f"You are an HR specialist. Extract up to 15 key technical skills from this resume.\n\n{text}\n\nSkills:"
     )
     response = _openai_client.chat.completions.create(
-        model="gpt-4.1-mini",  # or gpt-3.5-turbo for lower cost
+        model="gpt-4.1-mini",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-        max_tokens=200
+        temperature=0.2,
+        max_tokens=400
     )
     return response.choices[0].message.content.strip()
 
@@ -95,11 +94,11 @@ def score_resume(pdf_bytes: bytes, description: str) -> dict:
     print(f"Extracted skills from JD for similarity: {skills_jd_for_similarity}")
 
     # Compute similarity score between resume summary and job description summary
-    similarity_summary = _calculate_similarity(resume_summary, jd_summary, _sim_model)
+    similarity_summary = _calculate_similarity(resume_summary, jd_summary)
     print(f"Similarity score (summary): {similarity_summary:.3f}")
 
     # Compute similarity score between skills in resume and skills in jd
-    similarity_skills = _calculate_similarity(skills_resume_for_similarity, skills_jd_for_similarity, _sim_model)
+    similarity_skills = _calculate_similarity(skills_resume_for_similarity, skills_jd_for_similarity)
     print(f"Similarity score (skills): {similarity_skills:.3f}")
 
     # Compute weighted sum of similarity scores
