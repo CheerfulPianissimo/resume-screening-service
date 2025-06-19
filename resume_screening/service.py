@@ -22,10 +22,10 @@ def _calculate_similarity(text1: str, text2: str) -> float:
 
 def _generate_resume_brief(text: str) -> str:
     prompt = (
-        f"You are a helpful HR assistant. Summarize this resume:\n\n{text}\n\nBrief Summary:"
+        f"You are a very skillful and knowledgeable HR assistant. Summarize this resume:\n\n{text}\n\nBrief Summary:"
     )
     response = _openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4.1-nano",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
         max_tokens=300
@@ -37,7 +37,7 @@ def _extract_skills_comma_separated(text):
         f"You are an HR specialist. Extract up to 15 key technical skills from this resume.\n\n{text}\n\nSkills:"
     )
     response = _openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4.1-nano",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=400
@@ -52,7 +52,7 @@ def _extract_skills_json(text: str) -> list:
         "Output JSON format, e.g.: {\"skills\": [\"skill1\", \"skill2\", \"skill3\", \"skill4\"]}"
     )
     response = _openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4.1-nano",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
         max_tokens=60
